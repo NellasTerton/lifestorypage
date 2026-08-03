@@ -17,6 +17,8 @@ export const sections = pgTable("sections", {
   content: text("content").notNull(),
   sourceMessageIds: integer("source_message_ids").array().notNull().default([]),
   sourceQuote: text("source_quote"),
+  /** Date of the earliest cited message, denormalised so rendering needs no chat file. */
+  sourceDate: timestamp("source_date"),
   status: text("status").notNull().default("pending"),
   verificationNote: text("verification_note"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

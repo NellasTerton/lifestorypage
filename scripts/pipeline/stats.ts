@@ -30,6 +30,9 @@ export type TotalStats = {
   daySpan: number;
   firstDate: string;
   lastDate: string;
+  photos: number;
+  voiceMessages: number;
+  participants: number;
 };
 
 export function totalStats(messages: ChatMessage[]): TotalStats {
@@ -45,6 +48,9 @@ export function totalStats(messages: ChatMessage[]): TotalStats {
     daySpan,
     firstDate: first.date,
     lastDate: last.date,
+    photos: messages.filter((m) => m.photo).length,
+    voiceMessages: messages.filter((m) => m.voice).length,
+    participants: new Set(messages.map((m) => m.from)).size,
   };
 }
 

@@ -5,6 +5,8 @@ export type ChatMessage = {
   date: string;
   from: string;
   text: string;
+  photo: boolean;
+  voice: boolean;
 };
 
 export type Chat = {
@@ -40,10 +42,19 @@ export function loadChat(path: string): Chat {
       date: String(m.date),
       from: String(m.from ?? "unknown"),
       text: flattenText(m.text).trim(),
-    }))
-    .filter((m: ChatMessage) => m.text.length > 0);
+      photo: Boolean(m.photo),
+      voice: m.media_type === "voice_message",
+    }));
 
   return { name: String(raw.name ?? "chat"), messages };
+}
+
+/**
+ * Messages that carry text. Media-only messages stay in the corpus for
+ * counting but are useless to the LLM and to word statistics.
+ */
+export function textMessages(messages: ChatMessage[]): ChatMessage[] {
+  return messages.filter((m) => m.text.length > 0);
 }
 
 export function chunkMessages(messages: ChatMessage[], size = 120): Chunk[] {

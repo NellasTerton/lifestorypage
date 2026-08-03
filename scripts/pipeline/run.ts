@@ -1,7 +1,12 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { sections, stories } from "../../src/db/schema.ts";
-import { chunkMessages, loadChat, type ChatMessage } from "./chat.ts";
+import {
+  chunkMessages,
+  loadChat,
+  textMessages,
+  type ChatMessage,
+} from "./chat.ts";
 import { mapLimit } from "./claude.ts";
 import { dedupeFirsts, extractFromChunk, type Claim } from "./extract.ts";
 import { frequentPhrases, topWords, totalStats, weekdayActivity } from "./stats.ts";
@@ -15,9 +20,23 @@ type SectionRow = {
   content: string;
   sourceMessageIds: number[];
   sourceQuote: string | null;
+  sourceDate: Date | null;
   status: string;
   verificationNote: string | null;
 };
+
+/** Earliest cited message date, so the page can label a claim without the chat file. */
+function earliestDate(
+  ids: number[],
+  byId: Map<number, ChatMessage>,
+): Date | null {
+  const dates = ids
+    .map((id) => byId.get(id)?.date)
+    .filter((d): d is string => Boolean(d))
+    .map((d) => new Date(d))
+    .filter((d) => !Number.isNaN(d.getTime()));
+  return dates.length ? new Date(Math.min(...dates.map((d) => d.getTime()))) : null;
+}
 
 function stage(n: number, title: string) {
   console.log(`\n${"═".repeat(64)}\n${n}. ${title}\n${"═".repeat(64)}`);
@@ -38,8 +57,10 @@ async function main() {
   const chat = loadChat(CHAT_PATH);
   const byId = new Map<number, ChatMessage>(chat.messages.map((m) => [m.id, m]));
   const participants = [...new Set(chat.messages.map((m) => m.from))];
+  // Media-only messages count toward totals but carry nothing for the LLM.
+  const texts = textMessages(chat.messages);
   console.log(`Чат:          ${chat.name}`);
-  console.log(`Сообщений:    ${chat.messages.length}`);
+  console.log(`Сообщений:    ${chat.messages.length} (с текстом: ${texts.length})`);
   console.log(`Участники:    ${participants.join(", ")}`);
   console.log(
     `Период:       ${chat.messages[0].date} → ${chat.messages.at(-1)!.date}`,
@@ -47,7 +68,7 @@ async function main() {
 
   // ── 2. Chunking ────────────────────────────────────────────────────────
   stage(2, "Chunking");
-  const chunks = chunkMessages(chat.messages, CHUNK_SIZE);
+  const chunks = chunkMessages(texts, CHUNK_SIZE);
   console.log(`Кусков: ${chunks.length} (по ~${CHUNK_SIZE} сообщений)`);
   for (const c of chunks) {
     console.log(
@@ -72,11 +93,12 @@ async function main() {
     content: JSON.stringify(total),
     sourceMessageIds: [],
     sourceQuote: null,
+    sourceDate: null,
     status: "computed",
     verificationNote: "Агрегация по всему корпусу, без LLM.",
   });
 
-  const words = topWords(chat.messages, 20);
+  const words = topWords(texts, 20);
   console.log("Топ-слова:");
   console.log(
     "  " + words.map((w) => `${w.word} (${w.count})`).join(", "),
@@ -86,6 +108,7 @@ async function main() {
     content: JSON.stringify(words),
     sourceMessageIds: [],
     sourceQuote: null,
+    sourceDate: null,
     status: "computed",
     verificationNote: "Частотный анализ по всему корпусу, без LLM.",
   });
@@ -102,11 +125,12 @@ async function main() {
     content: JSON.stringify(weekdays),
     sourceMessageIds: [],
     sourceQuote: null,
+    sourceDate: null,
     status: "computed",
     verificationNote: "Подсчёт по датам сообщений, без LLM.",
   });
 
-  const phrases = frequentPhrases(chat.messages);
+  const phrases = frequentPhrases(texts);
   console.log("\nСамые частые фразы:");
   for (const p of phrases) {
     console.log(`  «${p.phrase}» — ${p.count} раз`);
@@ -117,6 +141,7 @@ async function main() {
       content: JSON.stringify(phrases),
       sourceMessageIds: phrases[0].exampleMessageIds,
       sourceQuote: phrases[0].phrase,
+      sourceDate: earliestDate(phrases[0].exampleMessageIds, byId),
       status: "computed",
       verificationNote: "N-граммный анализ по всему корпусу, без LLM.",
     });
@@ -184,6 +209,7 @@ async function main() {
       content: v.claim.claim,
       sourceMessageIds: v.claim.source_message_ids,
       sourceQuote: v.claim.source_quote,
+      sourceDate: earliestDate(v.claim.source_message_ids, byId),
       status: v.status,
       verificationNote: v.note,
     });
