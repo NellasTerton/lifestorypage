@@ -4,7 +4,7 @@ import { sections, stories } from "../../src/db/schema.ts";
 import { chunkMessages, loadChat, type ChatMessage } from "./chat.ts";
 import { mapLimit } from "./claude.ts";
 import { dedupeFirsts, extractFromChunk, type Claim } from "./extract.ts";
-import { frequentPhrases, topWords, weekdayActivity } from "./stats.ts";
+import { frequentPhrases, topWords, totalStats, weekdayActivity } from "./stats.ts";
 import { verifyClaim, type Verification } from "./verify.ts";
 
 const CHAT_PATH = process.argv[2] ?? "synthetic-chat.json";
@@ -61,6 +61,20 @@ async function main() {
 
   // ── 3. Детерминированный анализ (без LLM) ──────────────────────────────
   stage(3, "Анализ без LLM (код)");
+
+  const total = totalStats(chat.messages);
+  console.log(
+    `Всего сообщений: ${total.messageCount}, дней между первым и последним: ${total.daySpan}`,
+  );
+  console.log(`  ${total.firstDate} → ${total.lastDate}`);
+  rows.push({
+    type: "total_stats",
+    content: JSON.stringify(total),
+    sourceMessageIds: [],
+    sourceQuote: null,
+    status: "computed",
+    verificationNote: "Агрегация по всему корпусу, без LLM.",
+  });
 
   const words = topWords(chat.messages, 20);
   console.log("Топ-слова:");

@@ -25,6 +25,29 @@ const STOPWORDS = new Set([
   "меня", "нам", "вообще", "а-а", "аа", "ага", "да-да",
 ]);
 
+export type TotalStats = {
+  messageCount: number;
+  daySpan: number;
+  firstDate: string;
+  lastDate: string;
+};
+
+export function totalStats(messages: ChatMessage[]): TotalStats {
+  const first = messages[0];
+  const last = messages[messages.length - 1];
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const daySpan = Math.floor(
+    (new Date(last.date).getTime() - new Date(first.date).getTime()) / msPerDay,
+  );
+
+  return {
+    messageCount: messages.length,
+    daySpan,
+    firstDate: first.date,
+    lastDate: last.date,
+  };
+}
+
 function tokenize(text: string): string[] {
   return (text.toLowerCase().match(/[a-zа-яё0-9]+/gi) ?? []).map((w) =>
     w.replace(/ё/g, "е"),
