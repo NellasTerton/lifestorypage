@@ -1,14 +1,54 @@
 "use client";
 
 import Link from "next/link";
+import { useRef, useState } from "react";
 import { useActionState } from "react";
 import { uploadChat, type UploadState } from "@/app/actions/story";
+
+function Spinner() {
+  return (
+    <span
+      aria-hidden
+      className="inline-block size-5 animate-spin rounded-full border-2 border-current border-t-transparent"
+    />
+  );
+}
 
 export function UploadForm() {
   const [state, formAction, pending] = useActionState<UploadState, FormData>(
     uploadChat,
     null,
   );
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  function takeFiles(files: FileList | null) {
+    if (!files?.length || !inputRef.current) return;
+    const dt = new DataTransfer();
+    dt.items.add(files[0]);
+    inputRef.current.files = dt.files;
+    setFileName(files[0].name);
+  }
+
+  // The pipeline calls Claude for extraction and verification, which runs for
+  // roughly a minute — without this state the page looks frozen.
+  if (pending) {
+    return (
+      <div className="bg-card mt-8 rounded-2xl border p-10 text-center shadow-sm">
+        <span style={{ color: "var(--chart-1)" }}>
+          <Spinner />
+        </span>
+        <p className="font-display mt-5 text-xl font-semibold">
+          Анализируем вашу переписку…
+        </p>
+        <p className="text-muted-foreground mt-2 text-sm">
+          Это займёт около минуты: мы находим ключевые моменты и проверяем
+          каждый по исходным сообщениям. Не закрывайте страницу.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <form action={formAction} className="mt-8 space-y-5">
@@ -27,32 +67,68 @@ export function UploadForm() {
         />
       </div>
 
-      <div className="space-y-1.5">
-        <label htmlFor="chat" className="text-sm font-medium">
-          Файл экспорта
-        </label>
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          takeFiles(e.dataTransfer.files);
+        }}
+        onClick={() => inputRef.current?.click()}
+        className={`cursor-pointer rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors ${
+          dragging ? "bg-[var(--secondary)]" : "bg-card"
+        }`}
+        style={dragging ? { borderColor: "var(--chart-1)" } : undefined}
+      >
         <input
+          ref={inputRef}
           id="chat"
           name="chat"
           type="file"
           accept="application/json,.json"
           required
-          className="bg-card file:bg-secondary file:text-secondary-foreground w-full rounded-xl border px-4 py-2.5 file:mr-4 file:rounded-lg file:border-0 file:px-3 file:py-1.5 file:text-sm"
+          className="hidden"
+          onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
         />
-        <p className="text-muted-foreground text-xs">
-          JSON-экспорт из Telegram: Настройки → Экспорт данных, формат JSON.
-        </p>
+        {fileName ? (
+          <>
+            <p className="font-medium">{fileName}</p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Нажмите, чтобы выбрать другой файл
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="font-medium">Перетащите JSON-файл сюда</p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              или нажмите, чтобы выбрать файл
+            </p>
+          </>
+        )}
       </div>
 
-      {state?.error && <p className="text-destructive text-sm">{state.error}</p>}
+      {state?.error && (
+        <p
+          className="rounded-xl px-4 py-3 text-sm"
+          style={{
+            backgroundColor: "var(--accent)",
+            color: "var(--accent-foreground)",
+          }}
+        >
+          {state.error}
+        </p>
+      )}
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-4">
         <button
           type="submit"
-          disabled={pending}
-          className="bg-primary text-primary-foreground rounded-xl px-5 py-2.5 font-medium transition-opacity hover:opacity-90 disabled:opacity-60"
+          className="bg-primary text-primary-foreground rounded-xl px-5 py-2.5 font-medium transition-opacity hover:opacity-90"
         >
-          {pending ? "Загружаем…" : "Создать историю"}
+          Создать историю
         </button>
         <Link
           href="/dashboard"
@@ -61,13 +137,6 @@ export function UploadForm() {
           Отмена
         </Link>
       </div>
-
-      {pending && (
-        <p className="text-muted-foreground text-sm">
-          Статистика появится сразу. Ключевые моменты извлекаются и проверяются
-          в фоне — это занимает несколько минут.
-        </p>
-      )}
     </form>
   );
 }

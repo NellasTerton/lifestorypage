@@ -33,6 +33,42 @@ function flattenText(text: unknown): string {
     .join("");
 }
 
+/**
+ * Checks an uploaded file against the shape the pipeline expects, so a wrong
+ * file fails with a readable message instead of producing an empty story.
+ * Returns an error string, or null when the file is usable.
+ *
+ * Note: this targets our own export shape. Real Telegram Desktop exports may
+ * differ in field names — parsing those is the next step after the MVP.
+ */
+export function validateChatShape(raw: unknown): string | null {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return "Неверный формат: ожидается JSON-объект с полем messages.";
+  }
+
+  const data = raw as { messages?: unknown };
+  if (!Array.isArray(data.messages)) {
+    return "Неверный формат: в файле нет массива messages.";
+  }
+  if (data.messages.length === 0) {
+    return "В файле нет сообщений.";
+  }
+
+  const usable = data.messages.filter(
+    (m: unknown) =>
+      typeof m === "object" &&
+      m !== null &&
+      (m as { type?: unknown }).type === "message" &&
+      Number.isInteger(Number((m as { id?: unknown }).id)) &&
+      typeof (m as { date?: unknown }).date === "string",
+  );
+
+  if (usable.length === 0) {
+    return "Неверный формат: не найдено ни одного сообщения с полями type, id и date. Нужен JSON нашей структуры.";
+  }
+  return null;
+}
+
 /** Normalises an already-parsed Telegram export. Used by both CLI and upload. */
 export function parseChat(raw: unknown): Chat {
   const data = (raw ?? {}) as { name?: unknown; messages?: unknown };

@@ -1,13 +1,11 @@
 "use server";
 
 import { eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
-import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { sections, stories } from "@/db/schema";
 import { getUserId } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { parseChat, type ChatMessage } from "@/lib/pipeline/chat";
+import { parseChat, validateChatShape, type ChatMessage } from "@/lib/pipeline/chat";
 import { computedSections, llmSections } from "@/lib/pipeline/process";
 
 export type UploadState = { error: string } | null;
@@ -29,18 +27,24 @@ export async function uploadChat(
     return { error: "Файл больше 20 МБ." };
   }
 
-  let chat: { name: string; messages: ChatMessage[] };
+  let raw: unknown;
   try {
-    chat = parseChat(JSON.parse(await file.text()));
+    raw = JSON.parse(await file.text());
   } catch {
-    return { error: "Не удалось прочитать файл. Нужен JSON-экспорт из Telegram." };
+    return { error: "Это не JSON-файл — не удалось его прочитать." };
   }
+
+  const shapeError = validateChatShape(raw);
+  if (shapeError) return { error: shapeError };
+
+  const chat = parseChat(raw);
   if (chat.messages.length === 0) {
-    return { error: "В файле нет сообщений." };
+    return { error: "В файле нет сообщений, которые можно разобрать." };
   }
 
   const db = getDb();
-  const title = String(formData.get("title") ?? "").trim() || `Переписка: ${chat.name}`;
+  const title =
+    String(formData.get("title") ?? "").trim() || `Переписка: ${chat.name}`;
 
   const [story] = await db
     .insert(stories)
@@ -53,38 +57,38 @@ export async function uploadChat(
     })
     .returning({ id: stories.id });
 
-  // Deterministic sections are instant, so the story page has content to show
-  // straight away rather than sitting empty while the model works.
+  // Deterministic sections first: if the LLM stages fail or time out, the
+  // story still exists with real content rather than being lost entirely.
   await db
     .insert(sections)
     .values(
       computedSections(chat.messages).map((s) => ({ ...s, storyId: story.id })),
     );
 
-  // Extraction + verification take minutes — far longer than a request should
-  // last, so they run after the response is sent and flip status when done.
-  after(async () => {
-    try {
-      const rows = await llmSections(chat.messages);
-      if (rows.length > 0) {
-        await db
-          .insert(sections)
-          .values(rows.map((s) => ({ ...s, storyId: story.id })));
-      }
+  try {
+    const rows = await runLlmStages(chat.messages);
+    if (rows.length > 0) {
       await db
-        .update(stories)
-        .set({ status: "ready" })
-        .where(eq(stories.id, story.id));
-    } catch (err) {
-      console.error(`story ${story.id}: LLM stages failed`, err);
-      await db
-        .update(stories)
-        .set({ status: "failed" })
-        .where(eq(stories.id, story.id));
+        .insert(sections)
+        .values(rows.map((s) => ({ ...s, storyId: story.id })));
     }
-    revalidatePath("/dashboard");
-    revalidatePath(`/story/${story.id}`);
-  });
+    await db
+      .update(stories)
+      .set({ status: "ready" })
+      .where(eq(stories.id, story.id));
+  } catch (err) {
+    console.error(`story ${story.id}: LLM stages failed`, err);
+    await db
+      .update(stories)
+      .set({ status: "failed" })
+      .where(eq(stories.id, story.id));
+  }
 
+  // Outside the try: redirect() signals by throwing, so catching it here
+  // would swallow the navigation.
   redirect(`/story/${story.id}`);
+}
+
+function runLlmStages(messages: ChatMessage[]) {
+  return llmSections(messages);
 }
