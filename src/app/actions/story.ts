@@ -7,6 +7,7 @@ import { getUserId } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { parseChat, validateChatShape, type ChatMessage } from "@/lib/pipeline/chat";
 import { computedSections, llmSections } from "@/lib/pipeline/process";
+import { buildSourceText } from "@/lib/quote-check";
 
 export type UploadState = { error: string } | null;
 
@@ -52,6 +53,7 @@ export async function uploadChat(
       userId,
       title,
       sourceName: file.name,
+      sourceText: buildSourceText(chat.messages),
       messageCount: chat.messages.length,
       status: "processing",
     })

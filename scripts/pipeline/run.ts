@@ -2,6 +2,7 @@ import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { sections, stories } from "../../src/db/schema.ts";
 import { loadChat, textMessages } from "../../src/lib/pipeline/chat.ts";
+import { buildSourceText } from "../../src/lib/quote-check.ts";
 import {
   computedSections,
   llmSections,
@@ -53,6 +54,7 @@ async function main() {
     .values({
       title: `Переписка: ${chat.name}`,
       sourceName: CHAT_PATH,
+      sourceText: buildSourceText(chat.messages),
       messageCount: chat.messages.length,
       status: "ready",
     })

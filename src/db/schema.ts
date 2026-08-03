@@ -15,6 +15,12 @@ export const stories = pgTable("stories", {
   }),
   title: text("title").notNull(),
   sourceName: text("source_name"),
+  /**
+   * All message texts joined, kept so a quote can be checked against the
+   * original mechanically. Without it the source is gone after upload and
+   * "does this quote exist" can only be answered by hand.
+   */
+  sourceText: text("source_text"),
   messageCount: integer("message_count").notNull().default(0),
   /** `processing` while the LLM stages run, then `ready`. */
   status: text("status").notNull().default("ready"),

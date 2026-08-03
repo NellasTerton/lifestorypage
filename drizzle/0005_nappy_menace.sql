@@ -1,0 +1,1 @@
+ALTER TABLE "stories" ADD COLUMN "source_text" text;
