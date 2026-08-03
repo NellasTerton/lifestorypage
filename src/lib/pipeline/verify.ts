@@ -1,7 +1,7 @@
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import * as z from "zod";
 import type { ChatMessage } from "./chat.ts";
-import { claude, MODEL } from "./claude.ts";
+import { getClaude, MODEL } from "./claude.ts";
 import type { Claim } from "./extract.ts";
 
 const VerdictSchema = z.object({
@@ -51,7 +51,7 @@ export async function verifyClaim(
     .map((m) => `[id=${m.id}] ${m.date} ${m.from}: ${m.text}`)
     .join("\n");
 
-  const response = await claude.messages.parse({
+  const response = await getClaude().messages.parse({
     model: MODEL,
     max_tokens: 4000,
     system: SYSTEM,

@@ -33,10 +33,13 @@ function flattenText(text: unknown): string {
     .join("");
 }
 
-export function loadChat(path: string): Chat {
-  const raw = JSON.parse(readFileSync(path, "utf8"));
-  const messages: ChatMessage[] = (raw.messages ?? [])
-    .filter((m: { type?: string }) => m.type === "message")
+/** Normalises an already-parsed Telegram export. Used by both CLI and upload. */
+export function parseChat(raw: unknown): Chat {
+  const data = (raw ?? {}) as { name?: unknown; messages?: unknown };
+  const list = Array.isArray(data.messages) ? data.messages : [];
+
+  const messages: ChatMessage[] = list
+    .filter((m: { type?: string }) => m?.type === "message")
     .map((m: Record<string, unknown>) => ({
       id: Number(m.id),
       date: String(m.date),
@@ -44,9 +47,14 @@ export function loadChat(path: string): Chat {
       text: flattenText(m.text).trim(),
       photo: Boolean(m.photo),
       voice: m.media_type === "voice_message",
-    }));
+    }))
+    .filter((m: ChatMessage) => Number.isInteger(m.id));
 
-  return { name: String(raw.name ?? "chat"), messages };
+  return { name: String(data.name ?? "chat"), messages };
+}
+
+export function loadChat(path: string): Chat {
+  return parseChat(JSON.parse(readFileSync(path, "utf8")));
 }
 
 /**

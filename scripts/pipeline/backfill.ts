@@ -9,8 +9,8 @@ import { neon } from "@neondatabase/serverless";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
 import { sections } from "../../src/db/schema.ts";
-import { loadChat, type ChatMessage } from "./chat.ts";
-import { totalStats } from "./stats.ts";
+import { loadChat, type ChatMessage } from "../../src/lib/pipeline/chat.ts";
+import { totalStats } from "../../src/lib/pipeline/stats.ts";
 
 const CHAT_PATH = process.argv[2] ?? "synthetic-chat.json";
 const STORY_ID = Number(process.argv[3] ?? 1);

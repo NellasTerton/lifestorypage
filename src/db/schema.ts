@@ -1,10 +1,23 @@
 import { integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const stories = pgTable("stories", {
   id: serial("id").primaryKey(),
+  /** Nullable: story #1 predates accounts, and a story stays readable regardless. */
+  userId: integer("user_id").references(() => users.id, {
+    onDelete: "cascade",
+  }),
   title: text("title").notNull(),
   sourceName: text("source_name"),
   messageCount: integer("message_count").notNull().default(0),
+  /** `processing` while the LLM stages run, then `ready`. */
+  status: text("status").notNull().default("ready"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

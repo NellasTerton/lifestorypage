@@ -1,7 +1,7 @@
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import * as z from "zod";
 import { renderMessages, type Chunk } from "./chat.ts";
-import { claude, MODEL } from "./claude.ts";
+import { getClaude, MODEL } from "./claude.ts";
 
 const ClaimSchema = z.object({
   claim: z
@@ -46,7 +46,7 @@ export async function extractFromChunk(chunk: Chunk): Promise<Extraction> {
   const first = chunk.messages[0];
   const last = chunk.messages[chunk.messages.length - 1];
 
-  const response = await claude.messages.parse({
+  const response = await getClaude().messages.parse({
     model: MODEL,
     max_tokens: 16000,
     system: SYSTEM,

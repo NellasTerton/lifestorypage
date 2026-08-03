@@ -29,6 +29,13 @@
       "when": 1785744256644,
       "tag": "0003_organic_blindfold",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785744759043,
+      "tag": "0004_glamorous_maddog",
+      "breakpoints": true
     }
   ]
 }

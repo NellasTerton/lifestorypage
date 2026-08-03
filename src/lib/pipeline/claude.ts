@@ -2,7 +2,21 @@ import Anthropic from "@anthropic-ai/sdk";
 
 export const MODEL = "claude-opus-5";
 
-export const claude = new Anthropic();
+let cached: Anthropic | null = null;
+
+/**
+ * Lazily constructed: the SDK throws at construction when no key is present,
+ * which would break `next build` on a machine that only serves public pages.
+ */
+export function getClaude(): Anthropic {
+  if (!cached) {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error("ANTHROPIC_API_KEY is not set");
+    }
+    cached = new Anthropic();
+  }
+  return cached;
+}
 
 /** Runs tasks with bounded concurrency, preserving input order in the result. */
 export async function mapLimit<T, R>(
