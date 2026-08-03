@@ -2,7 +2,7 @@ import { chunkMessages, textMessages, type ChatMessage } from "./chat.ts";
 import { mapLimit } from "./claude.ts";
 import { dedupeFirsts, extractFromChunk, type Claim } from "./extract.ts";
 import { frequentPhrases, topWords, totalStats, weekdayActivity } from "./stats.ts";
-import { verifyClaim } from "./verify.ts";
+import { verifyBatch, VERIFY_BATCH_SIZE } from "./verify.ts";
 
 export const CHUNK_SIZE = 120;
 
@@ -103,7 +103,7 @@ export async function llmSections(
   const chunks = chunkMessages(texts, CHUNK_SIZE);
 
   onProgress(`Извлечение: ${chunks.length} кусков`);
-  const extractions = await mapLimit(chunks, 3, async (chunk) => {
+  const extractions = await mapLimit(chunks, 5, async (chunk) => {
     const result = await extractFromChunk(chunk);
     onProgress(
       `  кусок #${chunk.index + 1}: ${result.key_moments.length} моментов, ` +
@@ -123,14 +123,30 @@ export async function llmSections(
     })),
   ];
 
-  onProgress(`Верификация: ${claims.length} утверждений`);
-  let done = 0;
-  const verified = await mapLimit(claims, 5, async ({ type, claim }) => {
-    const v = await verifyClaim(claim, byId);
-    done += 1;
-    onProgress(`  [${done}/${claims.length}] ${v.status}: ${claim.claim.slice(0, 60)}`);
-    return { type, ...v };
+  // Batched so a long chat stays within a serverless function's time limit:
+  // one request per 10 claims instead of one per claim.
+  const batches: Array<Array<{ type: string; claim: Claim }>> = [];
+  for (let i = 0; i < claims.length; i += VERIFY_BATCH_SIZE) {
+    batches.push(claims.slice(i, i + VERIFY_BATCH_SIZE));
+  }
+
+  onProgress(
+    `Верификация: ${claims.length} утверждений в ${batches.length} пачках`,
+  );
+  let doneBatches = 0;
+  const verifiedBatches = await mapLimit(batches, 6, async (batch) => {
+    const results = await verifyBatch(
+      batch.map((b) => b.claim),
+      byId,
+    );
+    doneBatches += 1;
+    const ok = results.filter((r) => r.status === "verified").length;
+    onProgress(
+      `  пачка ${doneBatches}/${batches.length}: ${ok} verified, ${results.length - ok} flagged`,
+    );
+    return results.map((r, i) => ({ type: batch[i].type, ...r }));
   });
+  const verified = verifiedBatches.flat();
 
   return verified.map((v) => ({
     type: v.type,
