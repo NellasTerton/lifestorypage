@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { BiorhythmCard } from "@/components/story/biorhythm-card";
 import { Moments } from "@/components/story/moments";
 import { PhraseCard } from "@/components/story/phrase-card";
 import { ShareButton } from "@/components/story/share-button";
@@ -36,12 +37,16 @@ export default async function StoryPage({ params }: Props) {
     <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-14">
       <StatsHeader title={data.story.title} total={data.total} />
 
+      <div className="mt-6">
+        <ShareButton />
+      </div>
+
       <div className="mt-10 space-y-10 sm:mt-14 sm:space-y-14">
         <Moments moments={data.moments} />
         <PhraseCard phrases={data.phrases} />
+        <BiorhythmCard hours={data.hours} />
         <WordCloud words={data.topWords} />
         <WeekdayChart weekdays={data.weekdays} />
-        <ShareButton />
       </div>
 
       <footer className="text-muted-foreground mt-14 border-t pt-6 text-center text-xs">

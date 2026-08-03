@@ -10,20 +10,16 @@ export function PhraseCard({ phrases }: { phrases: Phrase[] }) {
         Самая частая фраза
       </h2>
 
-      <div className="mt-6 flex flex-col items-center gap-2 text-center">
-        <p className="font-display text-3xl font-semibold text-balance sm:text-4xl">
-          «{top.phrase}»
-        </p>
-        <p className="text-muted-foreground text-sm">
-          <span
-            className="font-display text-2xl font-semibold tabular-nums"
-            style={{ color: "var(--chart-1)" }}
-          >
-            {top.count}
-          </span>{" "}
-          {plural(top.count, "раз", "раза", "раз")} за всю переписку
-        </p>
-      </div>
+      <p className="font-display mt-6 text-center text-2xl leading-relaxed text-balance sm:text-3xl">
+        Вы написали друг другу «{top.phrase}» целых{" "}
+        <span
+          className="font-semibold tabular-nums"
+          style={{ color: "var(--chart-1)" }}
+        >
+          {top.count}
+        </span>{" "}
+        {plural(top.count, "раз", "раза", "раз")}
+      </p>
 
       {rest.length > 0 && (
         <ul className="mt-6 flex flex-wrap justify-center gap-2">

@@ -23,7 +23,36 @@ const STOPWORDS = new Set([
   "иногда", "лучше", "чуть", "том", "нельзя", "такой", "им", "более", "всегда",
   "конечно", "всю", "между", "это", "как-то", "просто", "очень", "тебе",
   "меня", "нам", "вообще", "а-а", "аа", "ага", "да-да",
+  // Conversational filler: frequent in any chat, so it says nothing about
+  // this one. Without these the cloud fills up with "привет" and "норм".
+  "привет", "приветик", "пока", "спасибо", "пожалуйста", "ладно", "хорошо",
+  "норм", "нормально", "окей", "оке", "угу", "нету", "こ", "喂",
+  "сейчас", "сегодня", "завтра", "вчера", "потом", "скоро", "давай", "давайте",
+  "прям", "прямо", "точно", "кстати", "вроде", "кажется", "думаю", "знаю",
+  "понял", "поняла", "看", "смотри", "слушай", "короче", "типа", "блин",
+  "какие", "какой", "какая", "какое", "таких", "такие", "такое", "такая",
+  "буду", "будет", "будем", "будешь", "была", "были", "было", "быть",
+  "есть", "нету", "надо", "нужно", "можно", "хочу", "хочешь", "хочет",
+  "день", "дня", "дней", "раз", "разу", "человек", "люди", "всем", "весь",
+  "хотя", "significa", "сделал", "сделала", "делать", "сказал", "сказала",
+  "https", "http", "www", "com", "жизни", "жизнь", "который", "которая",
+  "которые", "которых", "жду", "ждать", "иду", "идти", "пришел", "пришла",
 ]);
+
+/** Strips URLs before tokenising so link fragments never reach the cloud. */
+function stripUrls(text: string): string {
+  return text.replace(/https?:\/\/\S+|www\.\S+|\S+\.(?:ru|com|org|net)\b/gi, " ");
+}
+
+/**
+ * Crude Russian stem: inflections of one word are the same word to a reader,
+ * so "работу" and "работы" should not take two slots in the cloud.
+ * Prefix-based rather than rule-based — over-merging a rare pair costs less
+ * here than showing the same word three times.
+ */
+function stemKey(word: string): string {
+  return word.length >= 6 ? word.slice(0, 5) : word;
+}
 
 export type TotalStats = {
   messageCount: number;
@@ -32,6 +61,7 @@ export type TotalStats = {
   lastDate: string;
   photos: number;
   voiceMessages: number;
+  voiceSeconds: number;
   participants: number;
 };
 
@@ -50,6 +80,7 @@ export function totalStats(messages: ChatMessage[]): TotalStats {
     lastDate: last.date,
     photos: messages.filter((m) => m.photo).length,
     voiceMessages: messages.filter((m) => m.voice).length,
+    voiceSeconds: messages.reduce((sum, m) => sum + m.voiceSeconds, 0),
     participants: new Set(messages.map((m) => m.from)).size,
   };
 }
@@ -63,17 +94,40 @@ function tokenize(text: string): string[] {
 export type TopWord = { word: string; count: number };
 
 export function topWords(messages: ChatMessage[], limit = 20): TopWord[] {
-  const counts = new Map<string, number>();
+  // Group inflections under one stem, then label the group with whichever
+  // surface form actually appeared most often.
+  const groups = new Map<string, { total: number; forms: Map<string, number> }>();
+
   for (const m of messages) {
-    for (const w of tokenize(m.text)) {
-      if (w.length < 4 || STOPWORDS.has(w)) continue;
-      counts.set(w, (counts.get(w) ?? 0) + 1);
+    for (const w of tokenize(stripUrls(m.text))) {
+      if (w.length < 4 || STOPWORDS.has(w) || /^\d+$/.test(w)) continue;
+      const key = stemKey(w);
+      const g = groups.get(key) ?? { total: 0, forms: new Map() };
+      g.total += 1;
+      g.forms.set(w, (g.forms.get(w) ?? 0) + 1);
+      groups.set(key, g);
     }
   }
-  return [...counts.entries()]
-    .map(([word, count]) => ({ word, count }))
+
+  return [...groups.values()]
+    .map((g) => {
+      const [word] = [...g.forms.entries()].sort((a, b) => b[1] - a[1])[0];
+      return { word, count: g.total };
+    })
     .sort((a, b) => b.count - a.count || a.word.localeCompare(b.word))
     .slice(0, limit);
+}
+
+export type HourBucket = { hour: number; count: number };
+
+/** Message counts per hour of day — the basis for the biorhythm section. */
+export function hourActivity(messages: ChatMessage[]): HourBucket[] {
+  const counts = new Array(24).fill(0);
+  for (const m of messages) {
+    const d = new Date(m.date);
+    if (!Number.isNaN(d.getTime())) counts[d.getHours()] += 1;
+  }
+  return counts.map((count, hour) => ({ hour, count }));
 }
 
 const WEEKDAYS = [

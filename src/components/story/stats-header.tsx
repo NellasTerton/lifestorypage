@@ -1,27 +1,24 @@
-import { formatDate, plural, type TotalStats } from "@/lib/story";
+import { formatDate, plural, voicePart, type TotalStats } from "@/lib/story";
 
-function Stat({
-  value,
-  label,
-  tone,
-}: {
-  value: number;
-  label: string;
-  tone: string;
-}) {
+function Num({ children, tone }: { children: number; tone: string }) {
   return (
-    <div className="flex flex-col items-center gap-1 px-3 py-5 sm:px-6">
-      <span
-        className="font-display text-5xl leading-none font-semibold tabular-nums sm:text-6xl"
-        style={{ color: tone }}
-      >
-        {value.toLocaleString("ru-RU")}
-      </span>
-      <span className="text-muted-foreground text-xs tracking-wide uppercase sm:text-sm">
-        {label}
-      </span>
-    </div>
+    <span
+      className="font-display font-semibold tabular-nums"
+      style={{ color: tone }}
+    >
+      {children.toLocaleString("ru-RU")}
+    </span>
   );
+}
+
+/** Same "A, B и C" joining as story.ts's joinRu, but for JSX nodes. */
+function joinRuNodes(parts: React.ReactNode[]): React.ReactNode {
+  return parts.map((p, i) => (
+    <span key={i}>
+      {i > 0 && (i === parts.length - 1 ? " и " : ", ")}
+      {p}
+    </span>
+  ));
 }
 
 export function StatsHeader({
@@ -33,48 +30,28 @@ export function StatsHeader({
 }) {
   if (!total) return null;
 
-  // Photo and voice counters only appear when the export actually has them —
-  // a row of zeroes would read as a broken page rather than an empty chat.
-  const stats = [
-    {
-      value: total.daySpan,
-      label: plural(total.daySpan, "день переписки", "дня переписки", "дней переписки"),
-      tone: "var(--chart-1)",
-    },
-    {
-      value: total.messageCount,
-      label: plural(total.messageCount, "сообщение", "сообщения", "сообщений"),
-      tone: "var(--chart-2)",
-    },
-    ...(total.photos > 0
-      ? [
-          {
-            value: total.photos,
-            label: plural(total.photos, "фото", "фото", "фото"),
-            tone: "var(--chart-3)",
-          },
-        ]
-      : []),
-    ...(total.voiceMessages > 0
-      ? [
-          {
-            value: total.voiceMessages,
-            label: plural(
-              total.voiceMessages,
-              "голосовое",
-              "голосовых",
-              "голосовых",
-            ),
-            tone: "var(--chart-5)",
-          },
-        ]
-      : []),
-    {
-      value: total.participants,
-      label: plural(total.participants, "участник", "участника", "участников"),
-      tone: "var(--chart-4)",
-    },
+  const voice = voicePart(total);
+
+  const parts: React.ReactNode[] = [
+    <span key="messages">
+      <Num tone="var(--chart-2)">{total.messageCount}</Num>{" "}
+      {plural(total.messageCount, "сообщение", "сообщения", "сообщений")}
+    </span>,
   ];
+  if (total.photos > 0) {
+    parts.push(
+      <span key="photos">
+        <Num tone="var(--chart-3)">{total.photos}</Num> фото
+      </span>,
+    );
+  }
+  if (voice) {
+    parts.push(
+      <span key="voice">
+        <Num tone="var(--chart-5)">{voice.value}</Num> {voice.label}
+      </span>,
+    );
+  }
 
   return (
     <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[oklch(0.955_0.038_62)] via-[oklch(0.968_0.03_40)] to-[oklch(0.955_0.032_20)] px-6 py-12 text-center shadow-sm sm:px-12 sm:py-16">
@@ -88,11 +65,11 @@ export function StatsHeader({
         {formatDate(total.firstDate)} — {formatDate(total.lastDate)}
       </p>
 
-      <div className="mt-10 flex flex-wrap items-start justify-center divide-x divide-[oklch(0.88_0.03_60)]">
-        {stats.map((s) => (
-          <Stat key={s.label} {...s} />
-        ))}
-      </div>
+      <p className="font-display mx-auto mt-8 max-w-xl text-xl leading-relaxed text-balance sm:text-2xl">
+        Вы общаетесь уже <Num tone="var(--chart-1)">{total.daySpan}</Num>{" "}
+        {plural(total.daySpan, "день", "дня", "дней")}. За это время —{" "}
+        {joinRuNodes(parts)}.
+      </p>
     </header>
   );
 }

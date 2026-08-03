@@ -7,6 +7,8 @@ export type ChatMessage = {
   text: string;
   photo: boolean;
   voice: boolean;
+  /** Voice message length, when the export carries it. */
+  voiceSeconds: number;
 };
 
 export type Chat = {
@@ -83,6 +85,8 @@ export function parseChat(raw: unknown): Chat {
       text: flattenText(m.text).trim(),
       photo: Boolean(m.photo),
       voice: m.media_type === "voice_message",
+      voiceSeconds:
+        m.media_type === "voice_message" ? Number(m.duration_seconds) || 0 : 0,
     }))
     .filter((m: ChatMessage) => Number.isInteger(m.id));
 

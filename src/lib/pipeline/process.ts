@@ -1,7 +1,13 @@
 import { chunkMessages, textMessages, type ChatMessage } from "./chat.ts";
 import { mapLimit } from "./claude.ts";
 import { dedupeFirsts, extractFromChunk, type Claim } from "./extract.ts";
-import { frequentPhrases, topWords, totalStats, weekdayActivity } from "./stats.ts";
+import {
+  frequentPhrases,
+  hourActivity,
+  topWords,
+  totalStats,
+  weekdayActivity,
+} from "./stats.ts";
 import { verifyBatch, VERIFY_BATCH_SIZE } from "./verify.ts";
 
 export const CHUNK_SIZE = 120;
@@ -72,6 +78,16 @@ export function computedSections(messages: ChatMessage[]): SectionInput[] {
     sourceDate: null,
     status: "computed",
     verificationNote: "Подсчёт по датам сообщений, без LLM.",
+  });
+
+  rows.push({
+    type: "hour_activity",
+    content: JSON.stringify(hourActivity(messages)),
+    sourceMessageIds: [],
+    sourceQuote: null,
+    sourceDate: null,
+    status: "computed",
+    verificationNote: "Подсчёт по времени сообщений, без LLM.",
   });
 
   const phrases = frequentPhrases(texts);

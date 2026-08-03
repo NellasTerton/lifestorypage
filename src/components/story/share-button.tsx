@@ -30,28 +30,34 @@ export function ShareButton() {
   }
 
   return (
-    <section className="bg-card rounded-3xl border p-6 text-center shadow-sm sm:p-8">
-      <h2 className="font-display text-2xl font-semibold sm:text-3xl">
-        Поделиться историей
-      </h2>
-      <p className="text-muted-foreground mt-2 text-sm">
-        Ссылка открывается у любого — регистрация не нужна.
+    <section
+      className="flex flex-col items-center gap-3 rounded-2xl border-2 p-4 shadow-sm sm:flex-row sm:justify-between sm:p-5"
+      style={{
+        borderColor: "var(--chart-1)",
+        backgroundColor: "var(--accent)",
+      }}
+    >
+      <p
+        className="text-center text-sm font-medium sm:text-left"
+        style={{ color: "var(--accent-foreground)" }}
+      >
+        Эта история доступна по ссылке — поделитесь ей
       </p>
 
-      <div className="mx-auto mt-6 flex max-w-lg flex-col gap-2 sm:flex-row">
+      <div className="flex w-full max-w-md gap-2 sm:w-auto">
         <input
           ref={inputRef}
           readOnly
           value={url}
           onFocus={(e) => e.currentTarget.select()}
-          className="bg-muted min-w-0 flex-1 rounded-xl border px-4 py-2.5 text-sm outline-none"
+          className="bg-card min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm outline-none"
         />
         <button
           type="button"
           onClick={copy}
-          className="bg-primary text-primary-foreground shrink-0 rounded-xl px-5 py-2.5 font-medium transition-opacity hover:opacity-90"
+          className="bg-primary text-primary-foreground shrink-0 rounded-xl px-5 py-2 font-medium shadow-sm transition-opacity hover:opacity-90"
         >
-          {copied ? "Скопировано" : "Скопировать"}
+          {copied ? "Скопировано ✓" : "Поделиться"}
         </button>
       </div>
     </section>
