@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { logout } from "@/app/actions/auth";
+import { CopyLinkButton } from "@/components/copy-link-button";
 import { stories } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
@@ -89,12 +90,15 @@ export default async function DashboardPage() {
                     </span>
                   )}
                 </div>
-                <p className="text-muted-foreground mt-2 text-sm">
-                  {story.messageCount.toLocaleString("ru-RU")}{" "}
-                  {plural(story.messageCount, "сообщение", "сообщения", "сообщений")}
-                  {" · "}
-                  {formatDate(story.createdAt)}
-                </p>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-muted-foreground text-sm">
+                    {story.messageCount.toLocaleString("ru-RU")}{" "}
+                    {plural(story.messageCount, "сообщение", "сообщения", "сообщений")}
+                    {" · "}
+                    {formatDate(story.createdAt)}
+                  </p>
+                  <CopyLinkButton path={`/story/${story.id}`} />
+                </div>
               </Link>
             </li>
           ))}

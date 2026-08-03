@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Moments } from "@/components/story/moments";
 import { PhraseCard } from "@/components/story/phrase-card";
+import { ShareButton } from "@/components/story/share-button";
 import { StatsHeader } from "@/components/story/stats-header";
 import { WeekdayChart } from "@/components/story/weekday-chart";
 import { WordCloud } from "@/components/story/word-cloud";
@@ -40,6 +41,7 @@ export default async function StoryPage({ params }: Props) {
         <PhraseCard phrases={data.phrases} />
         <WordCloud words={data.topWords} />
         <WeekdayChart weekdays={data.weekdays} />
+        <ShareButton />
       </div>
 
       <footer className="text-muted-foreground mt-14 border-t pt-6 text-center text-xs">
