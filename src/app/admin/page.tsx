@@ -6,11 +6,14 @@ import { getDb } from "@/lib/db";
 export const metadata = { title: "Админка — секции" };
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams: Promise<{ story?: string }> };
+type Props = {
+  searchParams: Promise<{ story?: string; story_id?: string }>;
+};
 
 export default async function AdminPage({ searchParams }: Props) {
-  const { story } = await searchParams;
-  const storyId = Number(story);
+  const params = await searchParams;
+  // Both spellings work — ?story= and ?story_id= are equally guessable.
+  const storyId = Number(params.story ?? params.story_id);
   const filtered = Number.isInteger(storyId) && storyId > 0;
 
   const db = getDb();
