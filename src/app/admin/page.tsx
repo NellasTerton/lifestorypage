@@ -1,13 +1,34 @@
-import { asc, sql } from "drizzle-orm";
-import { sections } from "@/db/schema";
+import { asc, desc, eq, sql } from "drizzle-orm";
+import Link from "next/link";
+import { sections, stories } from "@/db/schema";
 import { getDb } from "@/lib/db";
 
 export const metadata = { title: "Админка — секции" };
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage() {
+type Props = { searchParams: Promise<{ story?: string }> };
+
+export default async function AdminPage({ searchParams }: Props) {
+  const { story } = await searchParams;
+  const storyId = Number(story);
+  const filtered = Number.isInteger(storyId) && storyId > 0;
+
+  const db = getDb();
+
+  const allStories = await db
+    .select({
+      id: stories.id,
+      title: stories.title,
+      messageCount: stories.messageCount,
+      createdAt: stories.createdAt,
+    })
+    .from(stories)
+    .orderBy(desc(stories.id));
+
   // flagged first, then computed, then verified.
-  const rows = await getDb()
+  const statusOrder = sql`case ${sections.status} when 'flagged' then 0 when 'computed' then 1 else 2 end`;
+
+  const rows = await db
     .select({
       id: sections.id,
       storyId: sections.storyId,
@@ -18,11 +39,8 @@ export default async function AdminPage() {
       note: sections.verificationNote,
     })
     .from(sections)
-    .orderBy(
-      sql`case ${sections.status} when 'flagged' then 0 when 'computed' then 1 else 2 end`,
-      asc(sections.storyId),
-      asc(sections.id),
-    );
+    .where(filtered ? eq(sections.storyId, storyId) : undefined)
+    .orderBy(statusOrder, asc(sections.storyId), asc(sections.id));
 
   const counts = rows.reduce<Record<string, number>>((acc, r) => {
     acc[r.status] = (acc[r.status] ?? 0) + 1;
@@ -32,10 +50,33 @@ export default async function AdminPage() {
   return (
     <main style={{ padding: 16, fontFamily: "monospace" }}>
       <h1>Секции ({rows.length})</h1>
+
+      <p style={{ lineHeight: 2 }}>
+        История:{" "}
+        <Link
+          href="/admin"
+          style={{ fontWeight: filtered ? "normal" : "bold", marginRight: 8 }}
+        >
+          все
+        </Link>
+        {allStories.map((s) => (
+          <Link
+            key={s.id}
+            href={`/admin?story=${s.id}`}
+            style={{
+              marginRight: 8,
+              fontWeight: filtered && storyId === s.id ? "bold" : "normal",
+            }}
+          >
+            #{s.id} {s.title} ({s.messageCount})
+          </Link>
+        ))}
+      </p>
+
       <p>
         {Object.entries(counts)
           .map(([status, n]) => `${status}: ${n}`)
-          .join(" · ")}
+          .join(" · ") || "нет секций"}
       </p>
 
       <table border={1} cellPadding={6} style={{ borderCollapse: "collapse" }}>
