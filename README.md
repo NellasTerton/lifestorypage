@@ -1,36 +1,301 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
 
-## Getting Started
+# 💌 Lifestorypage
 
-First, run the development server:
+**Экспорт переписки превращается в проверенную историю — с датами, цитатами и статистикой, которым можно верить**
+
+Каждое утверждение на странице проходит независимую проверку моделью. Не нашли подтверждения в тексте — не показываем.
+
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![Tailwind](https://img.shields.io/badge/Tailwind-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Claude](https://img.shields.io/badge/Claude-Opus_5-D97757?logo=anthropic&logoColor=white)](https://claude.com)
+[![Neon](https://img.shields.io/badge/Neon-Postgres-00E599?logo=postgresql&logoColor=white)](https://neon.tech)
+[![Vercel](https://img.shields.io/badge/Vercel-deployed-000000?logo=vercel&logoColor=white)](https://vercel.com)
+
+[**🔗 Живая демка**](https://lifestorypage.vercel.app) · [**English**](./README.en.md)
+
+</div>
+
+---
+
+## 📖 О проекте
+
+У всех есть переписка, которую жалко потерять и лень перечитывать — тысячи сообщений в архиве Telegram, к которым никто не вернётся. Lifestorypage превращает экспорт такого чата в готовую страницу-историю: сколько дней вы общаетесь, какие моменты были поворотными, кто что сказал первым, о чём говорили чаще всего — и когда именно.
+
+Отличие от типичного «сгенерируй нам романтичный текст» в том, что здесь **ничего не сочиняется**. Каждый ключевой момент — это утверждение, привязанное к конкретному сообщению и подтверждённое дословной цитатой. Прежде чем попасть на страницу, утверждение проходит отдельный, независимый проход модели-«судьи», которая проверяет его по исходному тексту. Не прошло проверку — не показывается.
+
+---
+
+## ✨ Возможности
+
+| | Возможность | Детали |
+|---|---|---|
+| 📊 | **Статистика в виде фраз** | «Вы общаетесь уже 709 дней. За это время — 600 сообщений и 44 фото» — вместо голых чисел, с русским склонением |
+| ✅ | **Проверенные моменты** | Поворотные точки и «первые события» — каждое с датой и точной цитатой из переписки |
+| 🌙 | **Биоритмы** | Почасовая тепловая карта переписки и вывод вроде «вы — ночные совы» |
+| ☁️ | **Облако слов** | Самые частые слова с русским стеммингом и курируемым фильтром — без «привет/пока/кстати» |
+| 💬 | **Частые фразы** | Что вы повторяли друг другу чаще всего, посчитано n-граммами |
+| 📅 | **Активность по дням** | В какие дни недели вы писали больше всего |
+| 🔗 | **Публичная ссылка** | История открывается у любого — без регистрации и входа |
+
+---
+
+## 📸 Скриншоты
+
+<table>
+<tr>
+<td width="50%">
+
+**Главная страница**
+
+<img src="docs/media/01-landing.png" alt="Лендинг с живым превью продукта" width="100%">
+
+</td>
+<td width="50%">
+
+**Страница истории**
+
+<img src="docs/media/02-story.png" alt="Страница истории со статистикой и моментами" width="100%">
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Проверенный момент**
+
+<img src="docs/media/03-moment.png" alt="Карточка момента с цитатой и датой" width="100%">
+
+</td>
+<td width="50%">
+
+**Биоритмы и облако слов**
+
+<img src="docs/media/04-biorhythm.png" alt="Почасовая тепловая карта и облако слов" width="100%">
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🏗 Архитектура
+
+```mermaid
+flowchart TB
+    U["Пользователь"] -->|"экспорт чата, JSON"| ACTION["uploadChat()<br/>Server Action"]
+    ACTION --> PARSE["parseChat()<br/>валидация формата"]
+
+    subgraph DETPATH["Детерминированный проход — бесплатно, без LLM"]
+        DET["computedSections()"]
+        STATS["totalStats · topWords<br/>weekdayActivity · hourActivity<br/>frequentPhrases"]
+        DET --> STATS
+    end
+
+    subgraph LLMPATH["LLM-проход — извлечение и проверка"]
+        CHUNK["chunkMessages()<br/>куски по 120 сообщений"]
+        EXTRACT["extractFromChunk()<br/>Claude Opus 5, structured output"]
+        DEDUPE["dedupeFirsts()"]
+        VERIFY["verifyBatch()<br/>Claude Opus 5, судья, по 10 утверждений"]
+        CHUNK --> EXTRACT --> DEDUPE --> VERIFY
+    end
+
+    PARSE --> DET
+    PARSE --> CHUNK
+    STATS --> DB[("Neon Postgres<br/>sections")]
+    VERIFY -->|"verified / flagged"| DB
+    DB --> PAGE["/story/[id]<br/>показывает только verified"]
+```
+
+Детерминированные секции пишутся в базу первыми и сразу — если LLM-проход упадёт на 600-м сообщении, история всё равно существует со статистикой, а не пропадает целиком.
+
+---
+
+## 🔍 Как проверяются факты
+
+Это и есть основная инженерная задача проекта: не «сгенерировать красиво», а не дать модели ничего выдумать.
+
+**1. Извлечение.** Чат режется на куски по 120 сообщений. На каждый кусок Claude Opus 5 достаёт 5–7 `key_moments` и все `firsts` — структурированным выводом через Zod-схему, а не парсингом свободного текста:
+
+```ts
+const ClaimSchema = z.object({
+  claim: z.string(),
+  source_message_ids: z.array(z.number()),
+  source_quote: z.string(), // дословная цитата, без перефразирования
+});
+```
+
+Системный промпт прямо запрещает обобщать: «Пустой массив лучше выдуманного утверждения».
+
+**2. Дедупликация «первых».** Одна и та же тема («впервые заговорили о переезде») может всплыть в нескольких соседних кусках — контекст чанков пересекается. `dedupeFirsts()` группирует утверждения по первым словам и оставляет только самое раннее упоминание темы.
+
+**3. Проверка — отдельным вызовом.** Модели, которая ничего не «рассказывает», дают утверждение, его цитату и полный текст исходных сообщений — и просят независимо ответить на два вопроса: `supported` (следует ли утверждение из текста) и `quote_is_verbatim` (цитата дословна?). Только `true` в обоих — `verified`. Утверждение, которое модель пропустила в ответе, никогда не помечается verified по умолчанию — только `flagged`.
+
+Перед тем как тратить вызов API, дешёвая проверка без LLM отсеивает утверждения, ссылающиеся на несуществующие id сообщений, — это стопроцентная галлюцинация, для распознавания которой не нужен ещё один запрос к модели.
+
+**4. Пачками, а не по одному.** Проверка идёт батчами по 10 утверждений — иначе разбор переписки на 600 сообщений не укладывается в таймаут serverless-функции Vercel. Но в пачке модель заметно мягче судит, поэтому здесь используется effort «medium», а не «low»: батчинг экономит round-trip'ы, а более высокий effort компенсирует потерю строгости.
+
+> **Итог:** непроверенные утверждения просто не долетают до страницы — `getStoryPageData()` отдаёт только секции со статусом `verified`.
+
+---
+
+## 💡 Другие решения
+
+<details>
+<summary><b>Своя HMAC-подпись сессии вместо JWT-библиотеки</b></summary>
+
+<br>
+
+Кука сессии хранит `userId.подпись`, где подпись — HMAC-SHA256 от userId на серверном секрете, сверяемый через `timingSafeEqual`. Без подписи любой мог бы подставить `session=2` и увидеть чужой дашборд. Задача — не более чем «доверять ли id из куки» — не требует JWT со сроками действия и заголовками; голого HMAC достаточно, и его проще целиком прочитать за одну проверку.
+
+</details>
+
+<details>
+<summary><b>Топ-слова: префиксный стемминг + курируемый стоп-лист</b></summary>
+
+<br>
+
+Слова группируются по первым 5 символам («работу»/«работа»/«работы» — одна группа), подписью группы становится самая частая исходная форма. Стоп-лист собран вручную и итеративно: не только предлоги и союзы, но и разговорный шум, который окажется в топе любого чата независимо от темы — «привет», «пока», «норм», «кстати».
+
+</details>
+
+<details>
+<summary><b>Биоритмы — осознанная эвристика, а не измеренный порог</b></summary>
+
+<br>
+
+«Ночные совы» определяются как ≥15% сообщений в окне 01:00–04:00. При равномерном распределении на 4-часовое окно пришлось бы ~17% — то есть 15% уже заметный перекос для 24-часового дня. Порог подобран, а не выведен статистически, и это прямо помечено комментарием в коде — чтобы будущий читатель не принял его за измеренную величину.
+
+</details>
+
+<details>
+<summary><b>Механическая проверка цитат в админке — второй, независимый слой</b></summary>
+
+<br>
+
+Помимо LLM-судьи есть ещё один, полностью нелингвистический чек: `quoteMatches()` нормализует кавычки/тире/регистр и просто ищет цитату как подстроку в исходном тексте переписки. Такая проверка не может ошибиться так, как может ошибиться модель, — либо подстрока есть, либо нет.
+
+</details>
+
+---
+
+## 🛠 Стек
+
+| Слой | Технологии |
+|---|---|
+| **Фронтенд** | Next.js 16 (App Router, Turbopack), React 19, TypeScript, Tailwind CSS v4, shadcn/ui |
+| **AI** | Claude Opus 5 (`@anthropic-ai/sdk`) — структурированное извлечение и независимая проверка фактов |
+| **База данных** | Neon Postgres (serverless) + Drizzle ORM |
+| **Аутентификация** | bcrypt + собственная HMAC-подписанная сессионная кука |
+| **Хостинг** | Vercel |
+
+---
+
+## 📁 Структура
+
+```
+src/
+├── app/
+│   ├── page.tsx                # Лендинг
+│   ├── login/, register/       # Аутентификация
+│   ├── dashboard/upload/       # Форма загрузки экспорта чата
+│   ├── admin/                  # Ручная проверка секций + quote_match
+│   ├── story/[id]/page.tsx     # Публичная страница истории
+│   └── actions/
+│       ├── auth.ts
+│       └── story.ts            # uploadChat() — Server Action
+├── components/
+│   ├── story/                  # stats-header, phrase-card, biorhythm-card…
+│   └── ui/                     # shadcn/ui
+├── lib/
+│   ├── auth.ts                 # HMAC-сессии
+│   ├── db.ts                   # Neon + Drizzle клиент
+│   ├── story.ts                # Форматирование данных для страницы
+│   ├── quote-check.ts          # Механическая проверка цитат
+│   └── pipeline/
+│       ├── chat.ts             # Парсинг и чанкинг экспорта
+│       ├── stats.ts            # Детерминированная статистика
+│       ├── extract.ts          # ⭐ Извлечение утверждений (Claude)
+│       ├── verify.ts           # ⭐ Независимая проверка (Claude)
+│       ├── process.ts          # Оркестрация обоих проходов
+│       └── claude.ts           # Клиент + mapLimit()
+└── db/schema.ts                # users · stories · sections
+
+scripts/pipeline/
+├── run.ts                      # CLI-запуск пайплайна целиком
+├── backfill.ts                 # Дозаполнение полей без LLM-вызовов
+└── timing.ts
+```
+
+---
+
+## 🚀 Запуск локально
+
+**Требуется:** Node.js 20+, проект в [Neon](https://neon.tech) (или любой Postgres), ключ [Anthropic](https://console.anthropic.com).
+
+### 1. Установка
+
+```bash
+git clone https://github.com/NellasTerton/lifestorypage.git
+cd lifestorypage
+npm install
+```
+
+### 2. Переменные окружения
+
+Создайте `.env.local`:
+
+```env
+DATABASE_URL=postgresql://user:password@host/db?sslmode=require
+ANTHROPIC_API_KEY=sk-ant-api03-...
+SESSION_SECRET=любая_случайная_строка
+```
+
+### 3. Миграции
+
+```bash
+npm run db:migrate
+```
+
+### 4. Старт
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Сайт — [localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 5. Разбор своего экспорта чата напрямую через пайплайн (опционально)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run pipeline synthetic-chat.json
+```
 
-## Learn More
+Проходит все стадии — парсинг, детерминированную статистику, извлечение и проверку через Claude — и печатает прогресс каждой из них, минуя веб-форму.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## ⚠️ Ограничения демо
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Формат экспорта — свой JSON (`type`, `id`, `date`, `text`, `from`); разбор произвольного Telegram Desktop экспорта — следующий шаг.
+- Исходный текст хранится как одна нормализованная строка на всю переписку (для механической проверки цитат), без разбивки по сообщениям — из-за этого более поздние вычисляемые поля (например, почасовая активность) нельзя досчитать для историй, загруженных до их появления.
+- Личный кабинет и загрузка — за простой почтовой аутентификацией, без сброса пароля и подтверждения email.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🗺 Что дальше
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [ ] Ранжирование моментов по значимости вместо равномерной ленты — топ-моменты крупнее, остальное сворачивается
+- [ ] Разбор нативного экспорта Telegram Desktop
+- [ ] Сброс пароля и подтверждение email
+- [ ] Совместные истории на двоих аккаунтах
+
+---
+
+<div align="center">
+
+Сделано с [Claude Code](https://claude.com/claude-code) · [English version](./README.en.md)
+
+</div>
