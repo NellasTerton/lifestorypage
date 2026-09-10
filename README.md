@@ -46,34 +46,18 @@
 
 <table>
 <tr>
-<td width="50%">
+<td width="50%" valign="top">
 
 **Главная страница**
 
-<img src="docs/media/01-landing.png" alt="Лендинг с живым превью продукта" width="100%">
+<img src="https://github.com/user-attachments/assets/f11888a0-be16-4ade-937e-1cac971ee6af" alt="Главная страница" width="100%">
 
 </td>
-<td width="50%">
+<td width="50%" valign="top">
 
 **Страница истории**
 
-<img src="docs/media/02-story.png" alt="Страница истории со статистикой и моментами" width="100%">
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-**Проверенный момент**
-
-<img src="docs/media/03-moment.png" alt="Карточка момента с цитатой и датой" width="100%">
-
-</td>
-<td width="50%">
-
-**Биоритмы и облако слов**
-
-<img src="docs/media/04-biorhythm.png" alt="Почасовая тепловая карта и облако слов" width="100%">
+<img src="https://github.com/user-attachments/assets/2c2f0879-d4d5-446c-aba4-db72f7212201" alt="Страница истории" width="100%">
 
 </td>
 </tr>
