@@ -46,34 +46,18 @@ The difference from a typical "write us something romantic" generator is that **
 
 <table>
 <tr>
-<td width="50%">
+<td width="50%" valign="top">
 
 **Landing page**
 
-<img src="docs/media/01-landing.png" alt="Landing page with a live product preview" width="100%">
+<img src="https://github.com/user-attachments/assets/f11888a0-be16-4ade-937e-1cac971ee6af" alt="Landing page" width="100%">
 
 </td>
-<td width="50%">
+<td width="50%" valign="top">
 
 **Story page**
 
-<img src="docs/media/02-story.png" alt="Story page with stats and moments" width="100%">
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-**Verified moment**
-
-<img src="docs/media/03-moment.png" alt="A moment card with quote and date" width="100%">
-
-</td>
-<td width="50%">
-
-**Biorhythm and word cloud**
-
-<img src="docs/media/04-biorhythm.png" alt="Hour-of-day heatmap and word cloud" width="100%">
+<img src="https://github.com/user-attachments/assets/2c2f0879-d4d5-446c-aba4-db72f7212201" alt="Story page" width="100%">
 
 </td>
 </tr>
